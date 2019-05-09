@@ -29,42 +29,98 @@ namespace Serie
 
         private void Button_Click(object sender, RoutedEventArgs e)
         {
-            DataTable tablaVentas = GetVentasActual();
-            DataTable tblventasanterior = GetVentasAnterior();
-            var query = from table1 in tablaVentas.AsEnumerable()
-                        join table2 in tblventasanterior.AsEnumerable()
-                        on table1.Field<int>("Numerosucursal") equals
-                        table2.Field<int>("Numerosucursal")
+
+
+            DataTable crud = new DataTable();
+            crud = GetDates();
+            DataTable detalle = new DataTable();
+            detalle = GetDetalle();
+
+          
+
+            //FUSIONAR LAS DOS TABLAS ANTERIOR Y ACTUAL
+            // DataTable tablaMen = Gw
+
+
+
+
+            var query = from table1 in crud.AsEnumerable()
+                        join table2 in detalle.AsEnumerable()
+                        on table1.Field<int>("Date") equals
+                        table2.Field<int>("Dia")
                         select new
                         {
-                            Numerosucursal = table1.Field<int>("Numerosucursal"),
-                            TotalActual = table1.Field<decimal>("TotalActual"),
-                            Codigo_De_Sucursal = table1.Field<string>("Codigo_De_Sucursal"),
-                            Nombre = table1.Field<string>("Nombre"),
-                            TotalAnterior = table2.Field<decimal>("TotalAnterior"),
+                            Dia = table1.Field<int>("Date"),
+                            Codigo_De_Sucursal = table2.Field<string>("Codigo_De_Sucursal"),
+                            Total = table2.Field<decimal>("Total"),
+                            Fecha = table2.Field<DateTime>("Fecha"),
+                           
                         };
+
+                       var lstLeftJoin =
+                           from fact in crud.AsEnumerable()
+                           join desc in detalle.AsEnumerable() on fact.Field<int>("Date") equals desc.Field<int>("Dia") into FactDesc
+                            from fd in FactDesc.DefaultIfEmpty()
+                            select new
+                            {
+                                Dia = fact.Field<int>("Date"),
+                                Total = (fd == null) ?  0 : fd.Field<decimal>("Total")
+                                
+
+
+                            }
+                           ;
+
+
+
+
+
+
+
             DataTable nueva = new DataTable();
-            nueva.Columns.Add("Numerosucursal", typeof(int));
-            nueva.Columns.Add("TotalActual", typeof(decimal));
-            nueva.Columns.Add("Codigo_De_Sucursal", typeof(string));
-            nueva.Columns.Add("Nombre", typeof(string));
-            nueva.Columns.Add("TotalAnterior", typeof(decimal));
+            nueva.Columns.Add("Date", typeof(int));
+            nueva.Columns.Add("Total", typeof(decimal));
 
 
-            foreach (var item in query)
+
+
+
+
+
+            foreach (var item in lstLeftJoin)
             {
-                nueva.Rows.Add(item.Numerosucursal, item.TotalActual, item.Codigo_De_Sucursal, item.Nombre, item.TotalAnterior);
+                //un if de que si no hay registro se guarde cero :v
+                nueva.Rows.Add(item.Dia, item.Total);
 
             }
-            Report1 fac = new Report1(nueva);
 
 
-
+            int osoKrasny = 1;
+            //aqui manda al rpt 
 
         }
 
+        public DataTable GetDates()
+        {
+            DataTable dt = new DataTable();
+            dt.Columns.Add("Date", typeof(Int32));
 
-        static DataTable GetVentasActual()
+            int year = 2019;
+            int month = 2;
+
+            int daysInMonth = DateTime.DaysInMonth(year, month);
+            for (int i = 0; i < daysInMonth; i++)
+            {
+                DataRow dr = dt.NewRow();
+                dr["Date"] = i + 1;
+                dt.Rows.Add(dr);
+            }
+
+            return dt;
+        }
+
+
+        static DataTable GetDetalle()
         {
 
 
@@ -85,7 +141,41 @@ namespace Serie
 
 
 
-            SqlDataAdapter adapter = new SqlDataAdapter(" SELECT    CASE WHEN Numero_Corto_De_Sucursal = 55 THEN 05 ELSE Numero_Corto_De_Sucursal END AS Numerosucursal, SUM(Total) AS TotalActual, CASE WHEN Codigo_De_Sucursal = 'B1' THEN 'B01' WHEN Codigo_De_Sucursal = 'B2' THEN 'B02' WHEN Codigo_De_Sucursal = 'B3' THEN 'B03' WHEN Codigo_De_Sucursal = 'B4' THEN 'B04' WHEN Codigo_De_Sucursal = 'B8' THEN 'B08' WHEN Codigo_De_Sucursal = 'B9' THEN 'B09' ELSE Codigo_De_Sucursal END AS Codigo_De_Sucursal , Sucursal as Nombre  FROM dbo.fncReporteadorDeVentas() fncReporteadorDeVentas WHERE(Fecha_Del_Documento BETWEEN CONVERT(DATETIME, '05/02/2019 00:00:00', 102)  AND CONVERT(DATETIME, '05/02/2019 00:00:00', 102)) and (Numero_Corto_De_Sucursal not in(7,11,17)) GROUP BY Numero_Corto_De_Sucursal, Codigo_De_Sucursal, Sucursal order by Numerosucursal asc ", sqlconn);
+            SqlDataAdapter adapter = new SqlDataAdapter("SELECT Codigo_De_Sucursal,SUM(Total)as Total, Fecha_Del_Documento as Fecha, Day(Fecha_Del_Documento) as Dia " +
+                "FROM dbo.fncReporteadorDeVentas() fncReporteadorDeVentas WHERE month(Fecha_Del_Documento) = 02 and year(Fecha_Del_Documento) = 2019 " +
+                "and(Numero_Corto_De_Sucursal in (7)) group by Fecha_Del_Documento, Codigo_De_Sucursal ", sqlconn);
+            DataSet dsPubs = new DataSet("Pubs");
+            adapter.Fill(dsPubs, "Vista");
+            DataTable dtbl = new DataTable();
+
+            dtbl = dsPubs.Tables["Vista"];
+            sqlconn.Close();
+
+            return dtbl;
+
+        }
+        static DataTable GetVentasActual2()
+        {
+
+
+
+            string conect = "SERVER = 192.168.200.1; DATABASE = Punto_De_Venta; USER ID = sa; PASSWORD = dgo2007 ";
+
+            SqlConnection sqlconn = new SqlConnection(conect);
+            try
+            {
+                sqlconn.Open();
+            }
+            catch (Exception ex)
+            {
+
+                MessageBox.Show("ERROR DE CONEXION" + ex.Message);
+            }
+
+
+
+
+            SqlDataAdapter adapter = new SqlDataAdapter(" SELECT    CASE WHEN Numero_Corto_De_Sucursal = 55 THEN 05 ELSE Numero_Corto_De_Sucursal END AS Numerosucursal, SUM(Total) AS TotalActual, CASE WHEN Codigo_De_Sucursal = 'B1' THEN 'B01' WHEN Codigo_De_Sucursal = 'B2' THEN 'B02' WHEN Codigo_De_Sucursal = 'B3' THEN 'B03' WHEN Codigo_De_Sucursal = 'B4' THEN 'B04' WHEN Codigo_De_Sucursal = 'B8' THEN 'B08' WHEN Codigo_De_Sucursal = 'B9' THEN 'B09' ELSE Codigo_De_Sucursal END AS Codigo_De_Sucursal , Sucursal as Nombre  FROM dbo.fncReporteadorDeVentas() fncReporteadorDeVentas WHERE(Fecha_Del_Documento BETWEEN CONVERT(DATETIME, '05/02/2018 00:00:00', 102)  AND CONVERT(DATETIME, '05/02/2018 00:00:00', 102)) and (Numero_Corto_De_Sucursal not in(7,11,17)) GROUP BY Numero_Corto_De_Sucursal, Codigo_De_Sucursal, Sucursal order by Numerosucursal asc ", sqlconn);
             DataSet dsPubs = new DataSet("Pubs");
             adapter.Fill(dsPubs, "Vista");
             DataTable dtbl = new DataTable();
@@ -127,7 +217,11 @@ namespace Serie
 
             return dtbl;
 
+
+
+
         }
+
 
 
     }

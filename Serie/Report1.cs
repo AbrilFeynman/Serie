@@ -34,7 +34,7 @@ namespace Serie
             }
         }
 
-        public Report1(System.Data.DataTable tbl)
+        public Report1(System.Data.DataTable tbl, System.Data.DataTable oso)
         {
 
             try
@@ -58,9 +58,11 @@ namespace Serie
                
                 string dateday = date.ToString("dd-MM-yyyy HH mm ");
                 objectDataSource1.DataSource = tbl;
+                objectDataSource2.DataSource = oso;
                 graph1.DataSource = objectDataSource1;
+                graph2.DataSource = objectDataSource1;
 
-        
+
 
                 //SaveReport(this.Report, @"C:\BIG\LRG\Excel\ORD_"+folio+ "_LRG920502BG7_"+ dateday + ".pdf");
                 string camino = @"C:\Ektelesis.Net\CFDI\DATOS\PDF\" + dateday + ".pdf";
